@@ -5,7 +5,7 @@ import mediapipe as mp
 import numpy as np
 import tempfile
 from PIL import Image
-import mediapipe.python.solutions.pose as mp_pose
+import mediapipe as mp
 
 # 1. 초기 설정
 MY_REVENUE_LINK = "https://link.inpock.co.kr/shopping1" # 형님의 수익 링크
@@ -17,11 +17,14 @@ except:
 st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️", layout="wide")
 
 # MediaPipe Pose 설정
+# 솔루션 초기화
 mp_pose = mp.solutions.pose
+mp_drawing = mp.solutions.drawing_utils # 나중에 관절 그릴 때 필요합니다.
+
 pose = mp_pose.Pose(
-    static_image_mode=False, 
-    model_complexity=1,  # 분석 정밀도 (0, 1, 2 중 선택)
-    min_detection_confidence=0.5, 
+    static_image_mode=False,
+    model_complexity=1,
+    min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
 
