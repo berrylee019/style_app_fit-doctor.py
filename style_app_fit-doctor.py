@@ -17,19 +17,23 @@ st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️",
 
 # --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 철벽 방어) ---
 # --- [수정] 20번 라인부터 시작하는 함수 섹션 ---
+# --- [수정] 20번 라인 근처 MediaPipe 로딩 섹션 ---
 @st.cache_resource
 def load_pose_engine():
-    import mediapipe as mp  # <-- 여기서부터 끝까지 한 칸씩 들여쓰기가 되어야 합니다.
+    import mediapipe as mp  # 1. 일단 대문(전체 패키지)만 엽니다.
+    
+    # 2. 내부 부품을 '속성'으로 안전하게 꺼내옵니다.
     try:
+        mp_p = mp.solutions.pose
+        mp_d = mp.solutions.drawing_utils
+        return mp_p, mp_d
+    except AttributeError:
+        # 혹시라도 solutions 속성이 안 보일 경우를 대비한 2차 방어
         from mediapipe.python.solutions import pose as mp_p
         from mediapipe.python.solutions import drawing_utils as mp_d
         return mp_p, mp_d
-    except ImportError:
-        import mediapipe.solutions.pose as mp_p
-        import mediapipe.solutions.drawing_utils as mp_d
-        return mp_p, mp_d
 
-# 함수 밖으로 나와서 엔진을 호출합니다. (여기서부터는 들여쓰기 없음)
+# 3. 이제 함수를 호출해서 부품을 할당합니다.
 mp_pose, mp_drawing = load_pose_engine()
 
 # 관절 분석기 인스턴스 생성
