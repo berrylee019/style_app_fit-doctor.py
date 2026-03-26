@@ -26,8 +26,11 @@ try:
     from mediapipe.python.solutions import drawing_utils as mp_drawing
 except ImportError:
     # 위 방법이 안 될 경우를 대비한 백업 경로
-    import mediapipe.solutions.pose as mp_pose
-    import mediapipe.solutions.drawing_utils as mp_drawing
+    import mediapipe as mp
+    
+    # 내부 모듈은 mp 객체를 통해 안전하게 불러옵니다.
+    mp_pose = mp.solutions.pose
+    mp_drawing = mp.solutions.drawing_utils
 
 # 관절 분석기 초기화
 pose = mp_pose.Pose(
