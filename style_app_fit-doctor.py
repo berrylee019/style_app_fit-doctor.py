@@ -18,17 +18,26 @@ st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️",
 # --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 철벽 방어) ---
 @st.cache_resource
 def load_pose_engine():
-    import mediapipe as mp
-    # 가장 안전한 계층적 접근 방식을 사용합니다.
+# --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 철벽 방어 - 최종판) ---
+import mediapipe as mp
+
+@st.cache_resource
+def load_pose_engine():
+    # mp.solutions를 거치지 않고 직접 내부 python 경로에서 pose와 drawing_utils를 가져옵니다.
     try:
         from mediapipe.python.solutions import pose as mp_p
-        return mp_p
+        from mediapipe.python.solutions import drawing_utils as mp_d
+        return mp_p, mp_d
     except ImportError:
-        return mp.solutions.pose
+        # 위 방식이 실패할 경우를 대비한 표준 경로 백업
+        import mediapipe.solutions.pose as mp_p
+        import mediapipe.solutions.drawing_utils as mp_d
+        return mp_p, mp_d
 
-mp_pose = load_pose_engine()
+# 엔진과 드로잉 유틸리티를 한 번에 가져옵니다.
+mp_pose, mp_drawing = load_pose_engine()
 
-# 관절 분석기 인스턴스 생성 (한 번만 실행되도록 캐싱)
+# 관절 분석기 인스턴스 생성
 @st.cache_resource
 def get_pose_detector():
     return mp_pose.Pose(
