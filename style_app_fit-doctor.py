@@ -17,21 +17,25 @@ st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️",
 
 # --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 최적화) ---
 # 가장 범용적인 임포트 방식을 사용하여 경로 에러를 원천 차단합니다.
+# --- [수정] MediaPipe Pose 설정 섹션 ---
 import mediapipe as mp
-mp_pose = mp.solutions.pose
-mp_drawing = mp.solutions.drawing_utils
 
-# 관절 분석기 초기화 (메모리 효율을 위해 한 번만 실행)
-@st.cache_resource
-def load_pose_model():
-    return mp_pose.Pose(
-        static_image_mode=False,
-        model_complexity=1,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5
-    )
+# mp.solutions를 거치지 않고 직접 경로에서 불러옵니다.
+try:
+    from mediapipe.python.solutions import pose as mp_pose
+    from mediapipe.python.solutions import drawing_utils as mp_drawing
+except ImportError:
+    # 위 방법이 안 될 경우를 대비한 백업 경로
+    import mediapipe.solutions.pose as mp_pose
+    import mediapipe.solutions.drawing_utils as mp_drawing
 
-pose = load_pose_model()
+# 관절 분석기 초기화
+pose = mp_pose.Pose(
+    static_image_mode=False,
+    model_complexity=1,
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)
 
 # --- [수익화 링크 설정] ---
 MY_REVENUE_LINK = "https://link.inpock.co.kr/shopping1" # 형님의 수익 링크
