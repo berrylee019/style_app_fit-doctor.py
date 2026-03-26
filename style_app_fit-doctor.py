@@ -20,7 +20,6 @@ st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️",
 from mediapipe.python.solutions import pose as mp_pose
 from mediapipe.python.solutions import drawing_utils as mp_drawing
 
-    import mediapipe as mp
     
     # 내부 경로를 직접 import 하지 않고, mp 객체를 통해 안전하게 접근합니다.
     mp_pose = mp.solutions.pose
