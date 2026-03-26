@@ -16,10 +16,10 @@ st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️",
 
 # --- [중요] MediaPipe Pose 설정 섹션 (철벽 방어형) ---
 # 서버 환경에 따라 경로가 달라지는 문제를 해결합니다.
-try:
-    mp_pose = mp.solutions.pose
-    mp_drawing = mp.solutions.drawing_utils
-except AttributeError:
+# 기존의 mp.solutions... 방식을 버리고 직접 경로에서 불러옵니다.
+from mediapipe.python.solutions import pose as mp_pose
+from mediapipe.python.solutions import drawing_utils as mp_drawing
+
     import mediapipe as mp
     
     # 내부 경로를 직접 import 하지 않고, mp 객체를 통해 안전하게 접근합니다.
