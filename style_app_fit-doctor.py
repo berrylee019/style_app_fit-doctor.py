@@ -21,6 +21,7 @@ st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️",
 try:
     mp_pose = mp.solutions.pose
 except AttributeError:
+    
 mp_drawing = mp.solutions.drawing_utils # 나중에 관절 그릴 때 필요합니다.
 
 pose = mp_pose.Pose(
