@@ -1,0 +1,6 @@
+streamlit
+google-generativeai
+opencv-python-headless
+mediapipe
+numpy<2.0.0
+Pillow
