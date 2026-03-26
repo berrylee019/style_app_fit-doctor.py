@@ -1,7 +1,5 @@
 streamlit
 google-generativeai
-opencv-python-headless
-mediapipe-silicon; platform_system == 'Darwin' and platform_machine == 'arm64'
-mediapipe; platform_system != 'Darwin' or platform_machine != 'arm64'
+opencv-python-headless==4.8.0.74
+mediapipe
 numpy<2.0.0
-Pillow
