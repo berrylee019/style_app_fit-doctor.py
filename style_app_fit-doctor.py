@@ -20,8 +20,11 @@ try:
     mp_pose = mp.solutions.pose
     mp_drawing = mp.solutions.drawing_utils
 except AttributeError:
-    import mediapipe.python.solutions.pose as mp_pose
-    import mediapipe.python.solutions.drawing_utils as mp_drawing
+    import mediapipe as mp
+    
+    # 내부 경로를 직접 import 하지 않고, mp 객체를 통해 안전하게 접근합니다.
+    mp_pose = mp.solutions.pose
+    mp_drawing = mp.solutions.drawing_utils
 
 # 관절 분석기 초기화
 pose = mp_pose.Pose(
