@@ -153,6 +153,10 @@ if 'body_stage' in st.session_state and st.session_state.body_stage == 'analyzed
     formatted_analysis = st.session_state.body_analysis.replace('\n', '<br>')
     
     # 2. 변환된 변수를 f-string 안에 넣습니다.
+    # 1. 줄바꿈 변환을 f-string 밖에서 미리 수행합니다.
+    formatted_analysis = st.session_state.body_analysis.replace('\n', '<br>')
+    
+    # 2. 변환된 변수를 f-string 안에 넣습니다.
     st.markdown(f"""
         <div style='background-color:#F8FAFC; padding:25px; border-radius:15px; border:1px solid #E2E8F0; line-height:1.7; color:#1E293B;'>
             {formatted_analysis}
