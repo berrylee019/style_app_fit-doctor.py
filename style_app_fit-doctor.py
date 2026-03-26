@@ -5,7 +5,8 @@ import mediapipe as mp
 import numpy as np
 import tempfile
 from PIL import Image
-import mediapipe as mp
+import mediapipe.python.solutions.pose as mp_pose
+import mediapipe.python.solutions.drawing_utils as mp_drawing
 
 # 1. 초기 설정
 MY_REVENUE_LINK = "https://link.inpock.co.kr/shopping1" # 형님의 수익 링크
