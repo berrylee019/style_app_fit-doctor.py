@@ -15,61 +15,59 @@ except Exception as e:
 
 st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️", layout="wide")
 
-# --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 최적화) ---
-# 가장 범용적인 임포트 방식을 사용하여 경로 에러를 원천 차단합니다.
-# --- [수정] MediaPipe Pose 설정 섹션 ---
-import mediapipe as mp
-
-# mp.solutions를 거치지 않고 직접 경로에서 불러옵니다.
-try:
-    from mediapipe.python.solutions import pose as mp_pose
-    from mediapipe.python.solutions import drawing_utils as mp_drawing
-except ImportError:
-    # 위 방법이 안 될 경우를 대비한 백업 경로
+# --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 철벽 방어) ---
+@st.cache_resource
+def load_pose_engine():
     import mediapipe as mp
-    
-    # 내부 모듈은 mp 객체를 통해 안전하게 불러옵니다.
-    mp_pose = mp.solutions.pose
-    mp_drawing = mp.solutions.drawing_utils
+    # 가장 안전한 계층적 접근 방식을 사용합니다.
+    try:
+        from mediapipe.python.solutions import pose as mp_p
+        return mp_p
+    except ImportError:
+        return mp.solutions.pose
 
-# 관절 분석기 초기화
-pose = mp_pose.Pose(
-    static_image_mode=False,
-    model_complexity=1,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
-)
+mp_pose = load_pose_engine()
+
+# 관절 분석기 인스턴스 생성 (한 번만 실행되도록 캐싱)
+@st.cache_resource
+def get_pose_detector():
+    return mp_pose.Pose(
+        static_image_mode=False,
+        model_complexity=1,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5
+    )
+
+pose_detector = get_pose_detector()
 
 # --- [수익화 링크 설정] ---
-MY_REVENUE_LINK = "https://link.inpock.co.kr/shopping1" # 형님의 수익 링크
+MY_REVENUE_LINK = "https://link.inpock.co.kr/shopping1"
 
 # --- [함수] 영상 관절 데이터 추출 ---
 def analyze_pose_from_video(video_path):
     cap = cv2.VideoCapture(video_path)
     ratios = []
     
-    # 영상 전체 프레임 수 확인
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if frame_count == 0:
         cap.release()
         return 1.0
         
-    # 분석할 프레임 지점 선정 (영상 길이에 따라 유연하게 추출)
-    sample_points = [frame_count//4, frame_count//2, 3*frame_count//4]
+    # 정밀도 향상을 위해 샘플링 지점을 5곳으로 확대
+    sample_points = [frame_count//6, frame_count//3, frame_count//2, 2*frame_count//3, 5*frame_count//6]
     
     for i in sample_points:
         cap.set(cv2.CAP_PROP_POS_FRAMES, i)
         success, image = cap.read()
         if not success: continue
         
-        # 이미지 전처리 및 관절 추출
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        results = pose.process(image_rgb)
+        results = pose_detector.process(image_rgb)
         
         if results.pose_landmarks:
             landmarks = results.pose_landmarks.landmark
             try:
-                # 어깨 및 골반 좌표 (안전하게 인덱스로 접근)
+                # 랜드마크 인덱스를 명확히 지정하여 오류 방지
                 l_sh = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
                 r_sh = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
                 l_hip = landmarks[mp_pose.PoseLandmark.LEFT_HIP]
@@ -97,7 +95,7 @@ col_guide, col_upload = st.columns([1.3, 1])
 with col_guide:
     st.markdown("### 📽️ 바디 스캔 가이드")
     st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
-    st.info("💡 **팁:** 전신이 다 나오도록 촬영하고, 정면이 잘 보일 때 분석이 가장 정확합니다!")
+    st.info("💡 **팁:** 전신이 다 나오도록 촬영하고, 정면을 응시할 때 가장 정확합니다!")
 
 with col_upload:
     st.markdown("### 🎬 바디 스캔 시작")
@@ -106,28 +104,25 @@ with col_upload:
     if uploaded_file:
         if st.button("🚀 AI 체형 분석 및 운동 처방 시작", use_container_width=True, type="primary"):
             with st.spinner("AI가 형님의 골격 데이터를 정밀 분석 중입니다..."):
-                # 1. 임시 파일 저장 (안전한 처리)
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tfile:
                     tfile.write(uploaded_file.read())
                     video_path = tfile.name
                 
                 try:
-                    # 2. MediaPipe 수치 데이터 추출
+                    # 1. 수치 데이터 추출
                     body_ratio = analyze_pose_from_video(video_path)
                     
-                    # 3. Gemini 전문가 코칭 생성
+                    # 2. Gemini 코칭 생성
                     model = genai.GenerativeModel('gemini-1.5-flash')
-                    ratio_status = "어깨가 골반보다 넓은 역삼각형" if body_ratio > 1.2 else "상하체 균형형" if body_ratio > 0.9 else "하체에 비해 상체가 왜소한 체형"
+                    ratio_status = "어깨가 넓은 역삼각형" if body_ratio > 1.2 else "상하체 균형형" if body_ratio > 0.9 else "하체가 발달한 체형"
                     
                     prompt = f"""
-                    사용자의 체형 수치 분석 결과: 어깨 대비 골반 비율 {body_ratio:.2f} (상태: {ratio_status}).
-                    위 데이터를 바탕으로:
-                    1. 이 체형이 가진 미적/기능적 장점을 칭찬해줘.
-                    2. 현재 비율에서 '황금 비율'로 가기 위해 보충해야 할 운동 루틴 3가지를 아주 구체적으로 설명해줘.
-                    3. 운동 시 다치지 않게 주의할 점과 도움이 되는 헬스 기구를 추천해줘.
-                    
-                    마지막엔 반드시 '# 추천 기구: [기구이름1, 기구이름2]' 형식으로 끝내줘.
-                    형님에게 조언하는 전문 트레이너처럼 친근하고 든든하게 말해줘.
+                    체형 수치 분석 결과: 어깨 대 골반 비율 {body_ratio:.2f} ({ratio_status}).
+                    전문 스포츠 트레이너로서 다음을 작성해줘:
+                    1. 이 체형의 장점과 특징 (형님이라 부르며 친근하게)
+                    2. 밸런스를 완성할 맞춤 운동 루틴 3단계
+                    3. 권장 헬스 기구 및 주의사항
+                    마지막엔 '# 추천 기구: [기구1, 기구2]' 문구를 포함해줘.
                     """
                     
                     with open(video_path, 'rb') as f:
@@ -142,7 +137,6 @@ with col_upload:
                     st.session_state.body_stage = 'analyzed'
                     
                 finally:
-                    # 임시 파일 삭제 (서버 용량 관리)
                     if os.path.exists(video_path):
                         os.remove(video_path)
                 
@@ -152,10 +146,10 @@ with col_upload:
 if 'body_stage' in st.session_state and st.session_state.body_stage == 'analyzed':
     st.divider()
     st.subheader("📊 AI 체형 분석 및 맞춤 코칭 리포트")
-    # 1. 줄바꿈 변환을 f-string 밖에서 미리 수행합니다.
+    
+    # 안전한 문자열 변환 처리
     formatted_analysis = st.session_state.body_analysis.replace('\n', '<br>')
     
-    # 2. 변환된 변수를 f-string 안에 넣습니다.
     st.markdown(f"""
         <div style='background-color:#F8FAFC; padding:25px; border-radius:15px; border:1px solid #E2E8F0; line-height:1.7; color:#1E293B;'>
             {formatted_analysis}
@@ -163,23 +157,23 @@ if 'body_stage' in st.session_state and st.session_state.body_stage == 'analyzed
     """, unsafe_allow_html=True)
     
     st.write("")
-    if st.button("✨ 운동에 필요한 기구 및 보충제 확인하기 (형님 전용 혜택)", use_container_width=True):
+    if st.button("✨ 추천 기구 및 보충제 혜택 확인하기", use_container_width=True):
         st.session_state.body_stage = 'shopping'
         st.rerun()
 
 if 'body_stage' in st.session_state and st.session_state.body_stage == 'shopping':
-    st.subheader("🛒 형님을 위한 맞춤 운동 서포트 아이템")
-    st.info("💡 분석 리포트에서 추천된 기구들을 아래 링크에서 최저가로 확인하세요!")
+    st.subheader("🛒 형님을 위한 맞춤 운동 아이템")
     
     c1, c2, c3 = st.columns(3)
-    with c1:
-        st.image("https://via.placeholder.com/300?text=Fitness+Gear")
-        st.link_button("🔥 하체 폭발 운동 밴드", MY_REVENUE_LINK, use_container_width=True)
-    with c2:
-        st.image("https://via.placeholder.com/300?text=Protein+Protein")
-        st.link_button("🥛 근육 생성 단백질 쉐이크", MY_REVENUE_LINK, use_container_width=True)
-    with c3:
-        st.image("https://via.placeholder.com/300?text=Recovery+Supplements")
-        st.link_button("💪 근력 증대 필수 영양제", MY_REVENUE_LINK, use_container_width=True)
+    items = [
+        ("https://via.placeholder.com/300?text=Fitness+Band", "🔥 하체 폭발 운동 밴드"),
+        ("https://via.placeholder.com/300?text=Protein+Shake", "🥛 근육 생성 단백질 쉐이크"),
+        ("https://via.placeholder.com/300?text=Supplements", "💪 근력 증대 영양제")
+    ]
     
-    st.success(f"형님, 이 루틴만 꾸준히 하시면 몸의 변화가 확실히 느껴지실 겁니다! {MY_REVENUE_LINK}에서 필요한 장비를 챙겨보세요.")
+    for col, (img, name) in zip([c1, c2, c3], items):
+        with col:
+            st.image(img)
+            st.link_button(name, MY_REVENUE_LINK, use_container_width=True)
+    
+    st.success(f"형님, 위 아이템들과 함께라면 득근은 시간문제입니다! 상세 혜택: {MY_REVENUE_LINK}")
