@@ -16,25 +16,20 @@ except Exception as e:
 st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️", layout="wide")
 
 # --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 철벽 방어) ---
+# --- [수정] 20번 라인부터 시작하는 함수 섹션 ---
 @st.cache_resource
 def load_pose_engine():
-# --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 철벽 방어 - 최종판) ---
-import mediapipe as mp
-
-@st.cache_resource
-def load_pose_engine():
-    # mp.solutions를 거치지 않고 직접 내부 python 경로에서 pose와 drawing_utils를 가져옵니다.
+    import mediapipe as mp  # <-- 여기서부터 끝까지 한 칸씩 들여쓰기가 되어야 합니다.
     try:
         from mediapipe.python.solutions import pose as mp_p
         from mediapipe.python.solutions import drawing_utils as mp_d
         return mp_p, mp_d
     except ImportError:
-        # 위 방식이 실패할 경우를 대비한 표준 경로 백업
         import mediapipe.solutions.pose as mp_p
         import mediapipe.solutions.drawing_utils as mp_d
         return mp_p, mp_d
 
-# 엔진과 드로잉 유틸리티를 한 번에 가져옵니다.
+# 함수 밖으로 나와서 엔진을 호출합니다. (여기서부터는 들여쓰기 없음)
 mp_pose, mp_drawing = load_pose_engine()
 
 # 관절 분석기 인스턴스 생성
