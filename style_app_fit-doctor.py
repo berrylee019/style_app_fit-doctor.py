@@ -17,14 +17,18 @@ except:
 
 st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️", layout="wide")
 
-# MediaPipe Pose 설정
-# 솔루션 초기화
+# --- [수정] MediaPipe Pose 설정 섹션 ---
 try:
-    # 1순위: 표준적인 방법으로 시도
+    # 1순위 시도
+    import mediapipe as mp
     mp_pose = mp.solutions.pose
     mp_drawing = mp.solutions.drawing_utils
 except AttributeError:
+    # 2순위 시도 (1순위 실패 시 실행되는 블록 - 반드시 들여쓰기 필요)
+    import mediapipe.python.solutions.pose as mp_pose
+    import mediapipe.python.solutions.drawing_utils as mp_drawing
 
+# 이 줄(pose)은 try-except 블록 밖으로 나와야 하므로 맨 앞으로 붙입니다.
 pose = mp_pose.Pose(
     static_image_mode=False,
     model_complexity=1,
