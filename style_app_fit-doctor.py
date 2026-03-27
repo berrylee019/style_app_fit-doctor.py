@@ -29,7 +29,8 @@ def load_pose_engine():
         return mp_p, mp_d
     except AttributeError:
         # 혹시라도 solutions 속성이 안 보일 경우를 대비한 2차 방어
-        from mediapipe.python.solutions import pose as mp_p
+        import mediapipe as mp
+        mp_pose = mp.solutions.pose
         from mediapipe.python.solutions import drawing_utils as mp_d
         return mp_p, mp_d
 
