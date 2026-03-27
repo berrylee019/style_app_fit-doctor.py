@@ -122,7 +122,7 @@ with col_upload:
                     body_ratio = analyze_pose_from_video(video_path)
                     
                     # 2. Gemini 코칭 생성
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('gemini-2.5-flash')
                     ratio_status = "어깨가 넓은 역삼각형" if body_ratio > 1.2 else "상하체 균형형" if body_ratio > 0.9 else "하체가 발달한 체형"
                     
                     prompt = f"""
