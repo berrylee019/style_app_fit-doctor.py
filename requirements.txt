@@ -1,6 +1,6 @@
 streamlit==1.32.2
 google-genai
-opencv-python-headless==4.9.0.80
+opencv-python-headless
 mediapipe==0.10.11
 numpy==1.26.4
 Pillow
