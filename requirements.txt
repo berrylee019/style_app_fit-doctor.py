@@ -1,5 +1,5 @@
 streamlit==1.32.2
-google-genai
+google-generativeai
 opencv-python-headless
 mediapipe==0.10.11
 numpy==1.26.4
