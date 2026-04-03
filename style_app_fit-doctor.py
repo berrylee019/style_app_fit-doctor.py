@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 import cv2
 import mediapipe as mp
 import numpy as np
