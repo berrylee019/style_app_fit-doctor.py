@@ -5,6 +5,7 @@ import mediapipe as mp
 import numpy as np
 import tempfile
 import os
+import re
 from PIL import Image
 
 # 1. 초기 설정 (Secrets 및 페이지 설정)
@@ -44,6 +45,18 @@ pose_detector = get_pose_detector()
 
 # --- [수익화 링크 설정] ---
 MY_REVENUE_LINK = "https://link.inpock.co.kr/shopping1"
+
+# --- [텍스트 정제 함수: 마크다운 기호 및 구분선 제거] ---
+def clean_report_text(text: str) -> str:
+    # 1. '---' 또는 '***' 구분을 위한 굵은 선 제거
+    text = re.sub(r'^\s*[-*_]{3,}\s*$', '', text, flags=re.MULTILINE)
+    # 2. '###', '##', '#' 등 마크다운 헤더 기호 제거
+    text = re.sub(r'#{1,6}\s*', '', text)
+    # 3. '**' 굵은 글씨 특수문자 제거
+    text = text.replace('**', '')
+    # 4. 연속된 줄바꿈 깔끔하게 정리 후 HTML 줄바꿈으로 변환
+    text = re.sub(r'\n{3,}', '\n\n', text).strip()
+    return text.replace('\n', '<br>')
 
 # --- [함수 1] 바디 밸런스 관절 데이터 추출 ---
 def analyze_pose_from_video(video_path):
@@ -92,7 +105,6 @@ def analyze_golf_swing_from_video(video_path):
         cap.release()
         return {"shoulder_tilt": 0.0, "hip_tilt": 0.0, "spine_angle": 0.0}
     
-    # 어드레스, 백스윙 top, 임팩트 추정 시점 산출
     sample_points = [frame_count//5, frame_count//2, 4*frame_count//5]
     shoulder_tilts, hip_tilts, spine_angles = [], [], []
 
@@ -112,15 +124,12 @@ def analyze_golf_swing_from_video(video_path):
                 l_hip = landmarks[mp_pose.PoseLandmark.LEFT_HIP]
                 r_hip = landmarks[mp_pose.PoseLandmark.RIGHT_HIP]
                 
-                # 어깨 기울기 (Shouler Tilt Angle)
                 sh_angle = np.degrees(np.arctan2(r_sh.y - l_sh.y, r_sh.x - l_sh.x))
                 shoulder_tilts.append(abs(sh_angle))
 
-                # 골반 기울기 (Hip Tilt Angle)
                 hip_angle = np.degrees(np.arctan2(r_hip.y - l_hip.y, r_hip.x - l_hip.x))
                 hip_tilts.append(abs(hip_angle))
 
-                # 스파인 앵글 (어깨 중심과 힙 중심의 연장선 척추 각도)
                 mid_sh_x, mid_sh_y = (l_sh.x + r_sh.x)/2, (l_sh.y + r_sh.y)/2
                 mid_hip_x, mid_hip_y = (l_hip.x + r_hip.x)/2, (l_hip.y + r_hip.y)/2
                 spine_deg = np.degrees(np.arctan2(mid_sh_y - mid_hip_y, mid_sh_x - mid_hip_x))
@@ -141,7 +150,6 @@ st.title("🏋️ AI 핏 닥터 프로 & ⛳ 골프 스윙 코치")
 st.markdown("##### 영상으로 분석하는 체형 황금 비율 & 드라이버 스윙 메커니즘 정밀 코칭")
 st.divider()
 
-# --- 탭 구성 ---
 tab1, tab2 = st.tabs(["🏋️ AI 바디 밸런스 코치", "⛳ 골프 스윙 / 드라이버 자세 코칭"])
 
 # ==========================================
@@ -173,11 +181,14 @@ with tab1:
                         
                         prompt = f"""
                         체형 수치 분석 결과: 어깨 대 골반 비율 {body_ratio:.2f} ({ratio_status}).
-                        전문 스포츠 트레이너로서 다음을 작성해줘:
-                        1. 이 체형의 장점과 특징 (형님이라 부르며 친근하게)
-                        2. 밸런스를 완성할 맞춤 운동 루틴 3단계
+                        전문 스포츠 트레이너로서 다음 항목에 맞춰 리포트를 작성해줘.
+                        [작성 규칙]
+                        - 절대로 마크다운 구분선(---), 특수문자(###, **)를 사용하지 마시오.
+                        - 단락 제목은 단순히 숫자와 번호로만 구분하시오.
+
+                        1. 체형 장점 및 특징 (형님이라 부르며 친근하게)
+                        2. 밸런스 완성 맞춤 운동 루틴 3단계
                         3. 권장 헬스 기구 및 주의사항
-                        마지막엔 '# 추천 기구: [기구1, 기구2]' 문구를 포함해줘.
                         """
                         
                         with open(video_path, 'rb') as f:
@@ -188,7 +199,7 @@ with tab1:
                             {"mime_type": "video/mp4", "data": video_data}
                         ])
                         
-                        st.session_state.body_analysis = response.text
+                        st.session_state.body_analysis = clean_report_text(response.text)
                         st.session_state.body_stage = 'analyzed'
                         
                     finally:
@@ -201,11 +212,10 @@ with tab1:
     if 'body_stage' in st.session_state and st.session_state.body_stage == 'analyzed':
         st.divider()
         st.subheader("📊 AI 체형 분석 및 맞춤 코칭 리포트")
-        formatted_analysis = st.session_state.body_analysis.replace('\n', '<br>')
         
         st.markdown(f"""
-            <div style='background-color:#F8FAFC; padding:25px; border-radius:15px; border:1px solid #E2E8F0; line-height:1.7; color:#1E293B;'>
-                {formatted_analysis}
+            <div style='background-color:#F8FAFC; padding:25px; border-radius:15px; border:1px solid #E2E8F0; line-height:1.8; color:#1E293B; font-size:15px;'>
+                {st.session_state.body_analysis}
             </div>
         """, unsafe_allow_html=True)
         
@@ -253,9 +263,7 @@ with tab2:
                         golf_video_path = tfile.name
                     
                     try:
-                        # 관절 메커니즘 측정
                         golf_metrics = analyze_golf_swing_from_video(golf_video_path)
-                        
                         model = genai.GenerativeModel('gemini-2.5-flash')
                         
                         golf_prompt = f"""
@@ -264,13 +272,15 @@ with tab2:
                         - 골반 기울기(Hip Tilt): 약 {golf_metrics['hip_tilt']:.1f}°
                         - 척추 유지 각도(Spine Angle Deviation): 약 {golf_metrics['spine_angle']:.1f}°
 
-                        당신은 PGA 투어 출신의 전문 골프 스윙 분석 프로입니다. 형님이라 부르며 친근하면서도 매서운 통찰력으로 분석해 주세요:
-                        1. **스윙 총평 및 칭찬**: 형님의 스윙 궤적과 포스 넘치는 동작에 대한 평가
-                        2. **단계별 메커니즘 진단**:
-                           - 어드레스 & 백스윙 탑 (스파인 앵글 및 회전축 유지 여부)
-                           - 임팩트 & 팔로우 스루 (체중 이동 및 스웨이/슬라이스 위험 요소)
-                        3. **비거리 20m 늘리는 교정 팁 2가지**
-                        4. **추천 골프 교정용 연습 장비**
+                        당신은 PGA 투어 출신의 전문 골프 스윙 분석 프로입니다. 형님이라 부르며 친근하면서도 전문적으로 분석해 주세요.
+                        [작성 규칙]
+                        - 절대로 마크다운 구분선(---), 특수문자(###, **)를 사용하지 마시오.
+                        - 단락 제목은 단순히 숫자와 번호로만 구분하시오.
+
+                        1. 스윙 총평 및 칭찬
+                        2. 단계별 메커니즘 진단 (어드레스, 백스윙, 임팩트 및 팔로우 스루)
+                        3. 비거리 20m 늘리는 교정 팁 2가지
+                        4. 추천 골프 교정용 연습 장비
                         """
                         
                         with open(golf_video_path, 'rb') as f:
@@ -281,7 +291,7 @@ with tab2:
                             {"mime_type": "video/mp4", "data": golf_video_data}
                         ])
                         
-                        st.session_state.golf_analysis = golf_response.text
+                        st.session_state.golf_analysis = clean_report_text(golf_response.text)
                         st.session_state.golf_stage = 'analyzed'
                         
                     finally:
@@ -294,11 +304,10 @@ with tab2:
     if 'golf_stage' in st.session_state and st.session_state.golf_stage == 'analyzed':
         st.divider()
         st.subheader("⛳ AI PGA 프로의 골프 스윙 진단 리포트")
-        formatted_golf_analysis = st.session_state.golf_analysis.replace('\n', '<br>')
         
         st.markdown(f"""
-            <div style='background-color:#F0FDF4; padding:25px; border-radius:15px; border:1px solid #BBF7D0; line-height:1.7; color:#166534;'>
-                {formatted_golf_analysis}
+            <div style='background-color:#F0FDF4; padding:25px; border-radius:15px; border:1px solid #BBF7D0; line-height:1.8; color:#166534; font-size:15px;'>
+                {st.session_state.golf_analysis}
             </div>
         """, unsafe_allow_html=True)
         
