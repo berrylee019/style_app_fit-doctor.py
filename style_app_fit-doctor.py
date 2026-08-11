@@ -1,5 +1,4 @@
 import streamlit as st
-#import google.genai
 import google.generativeai as genai
 import cv2
 import mediapipe as mp
@@ -14,31 +13,24 @@ try:
 except Exception as e:
     st.error(f"⚠️ API 키 설정 오류: Streamlit Secrets를 확인해주세요. ({e})")
 
-st.set_page_config(page_title="AI 바디 밸런스 코치", page_icon="🏋️", layout="wide")
+st.set_page_config(page_title="AI 핏 닥터 프로 & 골프 코치", page_icon="🏌️‍♂️", layout="wide")
 
-# --- [중요] MediaPipe Pose 설정 섹션 (서버 환경 철벽 방어) ---
-# --- [수정] 20번 라인부터 시작하는 함수 섹션 ---
-# --- [수정] 20번 라인 근처 MediaPipe 로딩 섹션 ---
+# --- [MediaPipe Pose 설정 섹션 (서버 환경 방어)] ---
 @st.cache_resource
 def load_pose_engine():
-    import mediapipe as mp  # 1. 일단 대문(전체 패키지)만 엽니다.
-    
-    # 2. 내부 부품을 '속성'으로 안전하게 꺼내옵니다.
+    import mediapipe as mp
     try:
         mp_p = mp.solutions.pose
         mp_d = mp.solutions.drawing_utils
         return mp_p, mp_d
     except AttributeError:
-        # 혹시라도 solutions 속성이 안 보일 경우를 대비한 2차 방어
         import mediapipe as mp
-        mp_pose = mp.solutions.pose
+        mp_p = mp.solutions.pose
         from mediapipe.python.solutions import drawing_utils as mp_d
         return mp_p, mp_d
 
-# 3. 이제 함수를 호출해서 부품을 할당합니다.
 mp_pose, mp_drawing = load_pose_engine()
 
-# 관절 분석기 인스턴스 생성
 @st.cache_resource
 def get_pose_detector():
     return mp_pose.Pose(
@@ -53,7 +45,7 @@ pose_detector = get_pose_detector()
 # --- [수익화 링크 설정] ---
 MY_REVENUE_LINK = "https://link.inpock.co.kr/shopping1"
 
-# --- [함수] 영상 관절 데이터 추출 ---
+# --- [함수 1] 바디 밸런스 관절 데이터 추출 ---
 def analyze_pose_from_video(video_path):
     cap = cv2.VideoCapture(video_path)
     ratios = []
@@ -63,7 +55,6 @@ def analyze_pose_from_video(video_path):
         cap.release()
         return 1.0
         
-    # 정밀도 향상을 위해 샘플링 지점을 5곳으로 확대
     sample_points = [frame_count//6, frame_count//3, frame_count//2, 2*frame_count//3, 5*frame_count//6]
     
     for i in sample_points:
@@ -77,13 +68,11 @@ def analyze_pose_from_video(video_path):
         if results.pose_landmarks:
             landmarks = results.pose_landmarks.landmark
             try:
-                # 랜드마크 인덱스를 명확히 지정하여 오류 방지
                 l_sh = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
                 r_sh = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
                 l_hip = landmarks[mp_pose.PoseLandmark.LEFT_HIP]
                 r_hip = landmarks[mp_pose.PoseLandmark.RIGHT_HIP]
                 
-                # 너비 계산 (유클리드 거리)
                 sh_width = np.sqrt((l_sh.x - r_sh.x)**2 + (l_sh.y - r_sh.y)**2)
                 hip_width = np.sqrt((l_hip.x - r_hip.x)**2 + (l_hip.y - r_hip.y)**2)
                 
@@ -95,95 +84,240 @@ def analyze_pose_from_video(video_path):
     cap.release()
     return np.mean(ratios) if ratios else 1.0
 
-# --- UI 레이아웃 ---
-st.title("🏋️ AI 바디 밸런스 코치")
-st.markdown("##### 영상 10초로 분석하는 내 몸의 황금 비율과 맞춤 운동법")
+# --- [함수 2] 골프 스윙 자세 관절 데이터 추출 ---
+def analyze_golf_swing_from_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if frame_count == 0:
+        cap.release()
+        return {"shoulder_tilt": 0.0, "hip_tilt": 0.0, "spine_angle": 0.0}
+    
+    # 어드레스, 백스윙 top, 임팩트 추정 시점 산출
+    sample_points = [frame_count//5, frame_count//2, 4*frame_count//5]
+    shoulder_tilts, hip_tilts, spine_angles = [], [], []
+
+    for i in sample_points:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+        success, image = cap.read()
+        if not success: continue
+
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        results = pose_detector.process(image_rgb)
+
+        if results.pose_landmarks:
+            landmarks = results.pose_landmarks.landmark
+            try:
+                l_sh = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+                r_sh = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+                l_hip = landmarks[mp_pose.PoseLandmark.LEFT_HIP]
+                r_hip = landmarks[mp_pose.PoseLandmark.RIGHT_HIP]
+                
+                # 어깨 기울기 (Shouler Tilt Angle)
+                sh_angle = np.degrees(np.arctan2(r_sh.y - l_sh.y, r_sh.x - l_sh.x))
+                shoulder_tilts.append(abs(sh_angle))
+
+                # 골반 기울기 (Hip Tilt Angle)
+                hip_angle = np.degrees(np.arctan2(r_hip.y - l_hip.y, r_hip.x - l_hip.x))
+                hip_tilts.append(abs(hip_angle))
+
+                # 스파인 앵글 (어깨 중심과 힙 중심의 연장선 척추 각도)
+                mid_sh_x, mid_sh_y = (l_sh.x + r_sh.x)/2, (l_sh.y + r_sh.y)/2
+                mid_hip_x, mid_hip_y = (l_hip.x + r_hip.x)/2, (l_hip.y + r_hip.y)/2
+                spine_deg = np.degrees(np.arctan2(mid_sh_y - mid_hip_y, mid_sh_x - mid_hip_x))
+                spine_angles.append(abs(90 - abs(spine_deg)))
+            except Exception:
+                continue
+
+    cap.release()
+    return {
+        "shoulder_tilt": float(np.mean(shoulder_tilts)) if shoulder_tilts else 0.0,
+        "hip_tilt": float(np.mean(hip_tilts)) if hip_tilts else 0.0,
+        "spine_angle": float(np.mean(spine_angles)) if spine_angles else 0.0
+    }
+
+
+# --- UI 메인 타이틀 ---
+st.title("🏋️ AI 핏 닥터 프로 & ⛳ 골프 스윙 코치")
+st.markdown("##### 영상으로 분석하는 체형 황금 비율 & 드라이버 스윙 메커니즘 정밀 코칭")
 st.divider()
 
-col_guide, col_upload = st.columns([1.3, 1])
+# --- 탭 구성 ---
+tab1, tab2 = st.tabs(["🏋️ AI 바디 밸런스 코치", "⛳ 골프 스윙 / 드라이버 자세 코칭"])
 
-with col_guide:
-    st.markdown("### 📽️ 바디 스캔 가이드")
-    st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
-    st.info("💡 **팁:** 전신이 다 나오도록 촬영하고, 정면을 응시할 때 가장 정확합니다!")
+# ==========================================
+# [TAB 1] AI 바디 밸런스 코치
+# ==========================================
+with tab1:
+    col_guide, col_upload = st.columns([1.3, 1])
 
-with col_upload:
-    st.markdown("### 🎬 바디 스캔 시작")
-    uploaded_file = st.file_uploader("분석할 영상을 업로드하세요 (MP4, MOV)", type=["mp4", "mov"])
-    
-    if uploaded_file:
-        if st.button("🚀 AI 체형 분석 및 운동 처방 시작", use_container_width=True, type="primary"):
-            with st.spinner("AI가 형님의 골격 데이터를 정밀 분석 중입니다..."):
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tfile:
-                    tfile.write(uploaded_file.read())
-                    video_path = tfile.name
-                
-                try:
-                    # 1. 수치 데이터 추출
-                    body_ratio = analyze_pose_from_video(video_path)
-                    
-                    # 2. Gemini 코칭 생성
-                    model = genai.GenerativeModel('gemini-2.5-flash')
-                    ratio_status = "어깨가 넓은 역삼각형" if body_ratio > 1.2 else "상하체 균형형" if body_ratio > 0.9 else "하체가 발달한 체형"
-                    
-                    prompt = f"""
-                    체형 수치 분석 결과: 어깨 대 골반 비율 {body_ratio:.2f} ({ratio_status}).
-                    전문 스포츠 트레이너로서 다음을 작성해줘:
-                    1. 이 체형의 장점과 특징 (형님이라 부르며 친근하게)
-                    2. 밸런스를 완성할 맞춤 운동 루틴 3단계
-                    3. 권장 헬스 기구 및 주의사항
-                    마지막엔 '# 추천 기구: [기구1, 기구2]' 문구를 포함해줘.
-                    """
-                    
-                    with open(video_path, 'rb') as f:
-                        video_data = f.read()
-                    
-                    response = model.generate_content([
-                        prompt, 
-                        {"mime_type": "video/mp4", "data": video_data}
-                    ])
-                    
-                    st.session_state.body_analysis = response.text
-                    st.session_state.body_stage = 'analyzed'
-                    
-                finally:
-                    if os.path.exists(video_path):
-                        os.remove(video_path)
-                
-                st.rerun()
+    with col_guide:
+        st.markdown("### 📽️ 바디 스캔 가이드")
+        st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
+        st.info("💡 **팁:** 전신이 다 나오도록 촬영하고, 정면을 응시할 때 가장 정확합니다!")
 
-# --- 결과 및 수익화 출력 ---
-if 'body_stage' in st.session_state and st.session_state.body_stage == 'analyzed':
-    st.divider()
-    st.subheader("📊 AI 체형 분석 및 맞춤 코칭 리포트")
-    
-    # 안전한 문자열 변환 처리
-    formatted_analysis = st.session_state.body_analysis.replace('\n', '<br>')
-    
-    st.markdown(f"""
-        <div style='background-color:#F8FAFC; padding:25px; border-radius:15px; border:1px solid #E2E8F0; line-height:1.7; color:#1E293B;'>
-            {formatted_analysis}
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.write("")
-    if st.button("✨ 추천 기구 및 보충제 혜택 확인하기", use_container_width=True):
-        st.session_state.body_stage = 'shopping'
-        st.rerun()
+    with col_upload:
+        st.markdown("### 🎬 바디 스캔 시작")
+        uploaded_file = st.file_uploader("분석할 영상을 업로드하세요 (MP4, MOV)", type=["mp4", "mov"], key="body_uploader")
+        
+        if uploaded_file:
+            if st.button("🚀 AI 체형 분석 및 운동 처방 시작", use_container_width=True, type="primary", key="body_btn"):
+                with st.spinner("AI가 형님의 골격 데이터를 정밀 분석 중입니다..."):
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tfile:
+                        tfile.write(uploaded_file.read())
+                        video_path = tfile.name
+                    
+                    try:
+                        body_ratio = analyze_pose_from_video(video_path)
+                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        ratio_status = "어깨가 넓은 역삼각형" if body_ratio > 1.2 else "상하체 균형형" if body_ratio > 0.9 else "하체가 발달한 체형"
+                        
+                        prompt = f"""
+                        체형 수치 분석 결과: 어깨 대 골반 비율 {body_ratio:.2f} ({ratio_status}).
+                        전문 스포츠 트레이너로서 다음을 작성해줘:
+                        1. 이 체형의 장점과 특징 (형님이라 부르며 친근하게)
+                        2. 밸런스를 완성할 맞춤 운동 루틴 3단계
+                        3. 권장 헬스 기구 및 주의사항
+                        마지막엔 '# 추천 기구: [기구1, 기구2]' 문구를 포함해줘.
+                        """
+                        
+                        with open(video_path, 'rb') as f:
+                            video_data = f.read()
+                        
+                        response = model.generate_content([
+                            prompt, 
+                            {"mime_type": "video/mp4", "data": video_data}
+                        ])
+                        
+                        st.session_state.body_analysis = response.text
+                        st.session_state.body_stage = 'analyzed'
+                        
+                    finally:
+                        if os.path.exists(video_path):
+                            os.remove(video_path)
+                    
+                    st.rerun()
 
-if 'body_stage' in st.session_state and st.session_state.body_stage == 'shopping':
-    st.subheader("🛒 형님을 위한 맞춤 운동 아이템")
-    
-    c1, c2, c3 = st.columns(3)
-    items = [
-        ("https://via.placeholder.com/300?text=Fitness+Band", "🔥 하체 폭발 운동 밴드"),
-        ("https://via.placeholder.com/300?text=Protein+Shake", "🥛 근육 생성 단백질 쉐이크"),
-        ("https://via.placeholder.com/300?text=Supplements", "💪 근력 증대 영양제")
-    ]
-    
-    for col, (img, name) in zip([c1, c2, c3], items):
-        with col:
-            st.image(img)
-            st.link_button(name, MY_REVENUE_LINK, use_container_width=True)
-    
-    st.success(f"형님, 위 아이템들과 함께라면 득근은 시간문제입니다! 상세 혜택: {MY_REVENUE_LINK}")
+    # 바디 밸런스 결과 출력
+    if 'body_stage' in st.session_state and st.session_state.body_stage == 'analyzed':
+        st.divider()
+        st.subheader("📊 AI 체형 분석 및 맞춤 코칭 리포트")
+        formatted_analysis = st.session_state.body_analysis.replace('\n', '<br>')
+        
+        st.markdown(f"""
+            <div style='background-color:#F8FAFC; padding:25px; border-radius:15px; border:1px solid #E2E8F0; line-height:1.7; color:#1E293B;'>
+                {formatted_analysis}
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.write("")
+        if st.button("✨ 추천 기구 및 보충제 혜택 확인하기", use_container_width=True, key="body_shop_btn"):
+            st.session_state.body_stage = 'shopping'
+            st.rerun()
+
+    if 'body_stage' in st.session_state and st.session_state.body_stage == 'shopping':
+        st.subheader("🛒 형님을 위한 맞춤 운동 아이템")
+        c1, c2, c3 = st.columns(3)
+        items = [
+            ("https://via.placeholder.com/300?text=Fitness+Band", "🔥 하체 폭발 운동 밴드"),
+            ("https://via.placeholder.com/300?text=Protein+Shake", "🥛 근육 생성 단백질 쉐이크"),
+            ("https://via.placeholder.com/300?text=Supplements", "💪 근력 증대 영양제")
+        ]
+        for col, (img, name) in zip([c1, c2, c3], items):
+            with col:
+                st.image(img)
+                st.link_button(name, MY_REVENUE_LINK, use_container_width=True)
+        
+        st.success(f"형님, 위 아이템들과 함께라면 득근은 시간문제입니다! 상세 혜택: {MY_REVENUE_LINK}")
+
+
+# ==========================================
+# [TAB 2] ⛳ 골프 스윙 / 드라이버 자세 코칭
+# ==========================================
+with tab2:
+    col_golf_guide, col_golf_upload = st.columns([1.3, 1])
+
+    with col_golf_guide:
+        st.markdown("### 📽️ 골프 스윙 촬영 가이드")
+        st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
+        st.info("💡 **팁:** 측면(Down the line) 또는 정면(Face-on)에서 골프클럽과 머리 끝부터 발끝까지 전신이 나오도록 찍어주세요!")
+
+    with col_golf_upload:
+        st.markdown("### ⛳ 스윙 분석 시작")
+        golf_file = st.file_uploader("스윙 영상 업로드 (드라이버/아이언, MP4, MOV)", type=["mp4", "mov"], key="golf_uploader")
+        
+        if golf_file:
+            if st.button("🚀 AI 골프 스윙 정밀 진단 시작", use_container_width=True, type="primary", key="golf_btn"):
+                with st.spinner("AI 프로 골프 코치가 형님의 스윙 궤적과 메커니즘을 분석 중입니다..."):
+                    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tfile:
+                        tfile.write(golf_file.read())
+                        golf_video_path = tfile.name
+                    
+                    try:
+                        # 관절 메커니즘 측정
+                        golf_metrics = analyze_golf_swing_from_video(golf_video_path)
+                        
+                        model = genai.GenerativeModel('gemini-2.5-flash')
+                        
+                        golf_prompt = f"""
+                        골프 스윙 관절 바이오매카닉 측정 결과:
+                        - 어깨 회전 기울기(Tilt): 약 {golf_metrics['shoulder_tilt']:.1f}°
+                        - 골반 기울기(Hip Tilt): 약 {golf_metrics['hip_tilt']:.1f}°
+                        - 척추 유지 각도(Spine Angle Deviation): 약 {golf_metrics['spine_angle']:.1f}°
+
+                        당신은 PGA 투어 출신의 전문 골프 스윙 분석 프로입니다. 형님이라 부르며 친근하면서도 매서운 통찰력으로 분석해 주세요:
+                        1. **스윙 총평 및 칭찬**: 형님의 스윙 궤적과 포스 넘치는 동작에 대한 평가
+                        2. **단계별 메커니즘 진단**:
+                           - 어드레스 & 백스윙 탑 (스파인 앵글 및 회전축 유지 여부)
+                           - 임팩트 & 팔로우 스루 (체중 이동 및 스웨이/슬라이스 위험 요소)
+                        3. **비거리 20m 늘리는 교정 팁 2가지**
+                        4. **추천 골프 교정용 연습 장비**
+                        """
+                        
+                        with open(golf_video_path, 'rb') as f:
+                            golf_video_data = f.read()
+                        
+                        golf_response = model.generate_content([
+                            golf_prompt, 
+                            {"mime_type": "video/mp4", "data": golf_video_data}
+                        ])
+                        
+                        st.session_state.golf_analysis = golf_response.text
+                        st.session_state.golf_stage = 'analyzed'
+                        
+                    finally:
+                        if os.path.exists(golf_video_path):
+                            os.remove(golf_video_path)
+                    
+                    st.rerun()
+
+    # 골프 스윙 결과 출력
+    if 'golf_stage' in st.session_state and st.session_state.golf_stage == 'analyzed':
+        st.divider()
+        st.subheader("⛳ AI PGA 프로의 골프 스윙 진단 리포트")
+        formatted_golf_analysis = st.session_state.golf_analysis.replace('\n', '<br>')
+        
+        st.markdown(f"""
+            <div style='background-color:#F0FDF4; padding:25px; border-radius:15px; border:1px solid #BBF7D0; line-height:1.7; color:#166534;'>
+                {formatted_golf_analysis}
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.write("")
+        if st.button("🎯 비거리 폭발! 추천 골프 연습용품 보러가기", use_container_width=True, key="golf_shop_btn"):
+            st.session_state.golf_stage = 'shopping'
+            st.rerun()
+
+    if 'golf_stage' in st.session_state and st.session_state.golf_stage == 'shopping':
+        st.subheader("🛒 형님을 위한 비거리 UP 골프 장비")
+        g1, g2, g3 = st.columns(3)
+        golf_items = [
+            ("https://via.placeholder.com/300?text=Swing+Trainer", "🚀 비거리 20m 증가 스윙 연습기"),
+            ("https://via.placeholder.com/300?text=Golf+Glove", "🖐️ 착감 폭발 양피 골프 장갑"),
+            ("https://via.placeholder.com/300?text=Posture+Band", "🎗️ 슬라이스 방지 스윙 교정 밴드")
+        ]
+        for col, (img, name) in zip([g1, g2, g3], golf_items):
+            with col:
+                st.image(img)
+                st.link_button(name, MY_REVENUE_LINK, use_container_width=True)
+        
+        st.success(f"형님, 이 장비들과 함께 필드에서 굿샷 하십시오! 최저가 클릭: {MY_REVENUE_LINK}")
