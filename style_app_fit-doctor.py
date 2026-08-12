@@ -161,8 +161,8 @@ with tab1:
     col_guide, col_upload = st.columns([1.3, 1])
 
     with col_guide:
-        st.markdown("### 📽️ 바디 스캔 가이드")
-        st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
+#        st.markdown("### 📽️ 바디 스캔 가이드")
+#        st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
         st.info("💡 **팁:** 전신이 다 나오도록 촬영하고, 정면을 응시할 때 가장 정확합니다!")
 
     with col_upload:
