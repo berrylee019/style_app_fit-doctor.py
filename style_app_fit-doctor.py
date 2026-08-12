@@ -8,6 +8,7 @@ import os
 import re
 from PIL import Image
 
+st.image("https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhA26EcdOcIbj0mbSQc3baIhlWOhri-ZT3tnXxPcLyHDbn5MQbwpKheAbpzTVkEGUt0ArXOGtiai5zdHtLbWlWCPNmazQ2AIH6NxLhOjox-TTn8iI5bzs4HIeu0GT76cbP0VgE7anf2fVhYklwJPGINeHiQtfO51kESVTeW0zzEaGaBELMf7SR3kVznXjI/s1248/golf.jpg", use_container_width=True)
 # 1. 초기 설정 (Secrets 및 페이지 설정)
 try:
     genai.configure(api_key=st.secrets["MY_API_KEY"])
