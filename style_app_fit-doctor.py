@@ -249,8 +249,8 @@ with tab2:
     col_golf_guide, col_golf_upload = st.columns([1.3, 1])
 
     with col_golf_guide:
-        st.markdown("### 📽️ 골프 스윙 촬영 가이드")
-        st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
+#        st.markdown("### 📽️ 골프 스윙 촬영 가이드")
+#        st.video("https://www.youtube.com/watch?v=1vE5QSvW_Vg") 
         st.info("💡 **팁:** 측면(Down the line) 또는 정면(Face-on)에서 골프클럽과 머리 끝부터 발끝까지 전신이 나오도록 찍어주세요!")
 
     with col_golf_upload:
