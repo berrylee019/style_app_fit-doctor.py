@@ -149,6 +149,7 @@ def analyze_golf_swing_from_video(video_path):
 # --- UI 메인 타이틀 ---
 st.title("🏋️ AI 핏 닥터 프로 & ⛳ 골프 스윙 코치")
 st.markdown("##### 영상으로 분석하는 체형 황금 비율 & 드라이버 스윙 메커니즘 정밀 코칭")
+st.image("https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhA26EcdOcIbj0mbSQc3baIhlWOhri-ZT3tnXxPcLyHDbn5MQbwpKheAbpzTVkEGUt0ArXOGtiai5zdHtLbWlWCPNmazQ2AIH6NxLhOjox-TTn8iI5bzs4HIeu0GT76cbP0VgE7anf2fVhYklwJPGINeHiQtfO51kESVTeW0zzEaGaBELMf7SR3kVznXjI/s1248/golf.jpg", use_container_width=True)
 st.divider()
 
 tab1, tab2 = st.tabs(["🏋️ AI 바디 밸런스 코치", "⛳ 골프 스윙 / 드라이버 자세 코칭"])
