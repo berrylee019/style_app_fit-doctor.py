@@ -8,7 +8,7 @@ import os
 import re
 from PIL import Image
 
-st.image("", use_container_width=True)
+
 # 1. 초기 설정 (Secrets 및 페이지 설정)
 try:
     genai.configure(api_key=st.secrets["MY_API_KEY"])
